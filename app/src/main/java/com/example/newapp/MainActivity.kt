@@ -26,6 +26,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -296,76 +297,88 @@ sealed class Screen {
 
 @Composable
 fun AppNavigation() {
-    var currentScreen by remember { mutableStateOf<Screen>(Screen.Login) }
+    var backstack by remember { mutableStateOf(listOf<Screen>(Screen.Dashboard)) }
     var token by remember { mutableStateOf<String?>(null) }
     var dashboardMonth by remember { mutableStateOf(Calendar.getInstance().get(Calendar.MONTH) + 1) }
     var language by remember { mutableStateOf("zh") }
     
-    BackHandler(enabled = currentScreen != Screen.Login && currentScreen != Screen.Dashboard) {
-        if (currentScreen is Screen.MetricTrend && (currentScreen as Screen.MetricTrend).previousScreen != null) {
-            currentScreen = (currentScreen as Screen.MetricTrend).previousScreen!!
-        } else {
-            currentScreen = Screen.Dashboard
+    val push: (Screen) -> Unit = { screen ->
+        if (backstack.lastOrNull() != screen) {
+            backstack = backstack + screen
         }
+    }
+    val pop: () -> Unit = {
+        if (backstack.size > 1) {
+            backstack = backstack.dropLast(1)
+        }
+    }
+
+    BackHandler(enabled = token != null && backstack.size > 1) {
+        pop()
     }
 
     if (token == null) {
         LoginScreen(onLoginSuccess = { 
             token = it
-            currentScreen = Screen.Dashboard 
+            backstack = listOf(Screen.Dashboard)
         })
     } else {
-        when (val screen = currentScreen) {
-            is Screen.Login -> currentScreen = Screen.Dashboard
-            is Screen.Dashboard -> DashboardScreen(
-                token = token!!,
-                selectedMonth = dashboardMonth,
-                language = language,
-                onLanguageChange = { language = it },
-                onMonthSelected = { dashboardMonth = it },
-                onNavigateToSnapshot = { id, m -> currentScreen = Screen.SnapshotDetail(id, m) },
-                onNavigateToMetrics = { title, filterType, m, sid, cat -> currentScreen = Screen.MetricsList(title, filterType, m, sid, cat) },
-                onNavigateToAlerts = { m -> currentScreen = Screen.AlertsList(m) },
-                onNavigateToTrend = { label, cat -> currentScreen = Screen.MetricTrend(label, cat, currentScreen) }
-            )
-            is Screen.SnapshotDetail -> SnapshotDetailScreen(
-                token = token!!,
-                snapshotId = screen.snapshotId,
-                month = screen.month,
-                language = language,
-                onBack = { currentScreen = Screen.Dashboard },
-                onNavigateToTrend = { label, cat -> currentScreen = Screen.MetricTrend(label, cat, currentScreen) }
-            )
-            is Screen.MetricsList -> MetricsListScreen(
-                token = token!!,
-                title = screen.title,
-                filterType = screen.filterType,
-                month = screen.month,
-                snapshotId = screen.snapshotId,
-                category = screen.category,
-                language = language,
-                onBack = { currentScreen = Screen.Dashboard },
-                onNavigateToTrend = { label, cat -> currentScreen = Screen.MetricTrend(label, cat, currentScreen) }
-            )
-            is Screen.AlertsList -> AlertsListScreen(
-                token = token!!,
-                month = screen.month,
-                language = language,
-                onBack = { currentScreen = Screen.Dashboard }
-            )
-            is Screen.MetricTrend -> MetricTrendScreen(
-                token = token!!,
-                metricLabel = screen.metricLabel,
-                category = screen.category,
-                language = language,
-                onBack = { 
-                    if (screen.previousScreen != null) {
-                        currentScreen = screen.previousScreen
-                    } else {
-                        currentScreen = Screen.Dashboard 
+        Box(modifier = Modifier.fillMaxSize()) {
+            backstack.forEachIndexed { index, screen ->
+                val isTop = index == backstack.lastIndex
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .then(if (isTop) Modifier else Modifier.alpha(0f).offset(x = 10000.dp))
+                ) {
+                    when (screen) {
+                        is Screen.Login -> {}
+                        is Screen.Dashboard -> DashboardScreen(
+                            token = token!!,
+                            selectedMonth = dashboardMonth,
+                            language = language,
+                            onLanguageChange = { language = it },
+                            onMonthSelected = { dashboardMonth = it },
+                            onNavigateToSnapshot = { id, m -> push(Screen.SnapshotDetail(id, m)) },
+                            onNavigateToMetrics = { title, filterType, m, sid, cat -> push(Screen.MetricsList(title, filterType, m, sid, cat)) },
+                            onNavigateToAlerts = { m -> push(Screen.AlertsList(m)) },
+                            onNavigateToTrend = { label, cat -> push(Screen.MetricTrend(label, cat, null)) }
+                        )
+                        is Screen.SnapshotDetail -> SnapshotDetailScreen(
+                            token = token!!,
+                            snapshotId = screen.snapshotId,
+                            month = screen.month,
+                            language = language,
+                            onBack = pop,
+                            onNavigateToTrend = { label, cat -> push(Screen.MetricTrend(label, cat, null)) }
+                        )
+                        is Screen.MetricsList -> MetricsListScreen(
+                            token = token!!,
+                            title = screen.title,
+                            filterType = screen.filterType,
+                            month = screen.month,
+                            snapshotId = screen.snapshotId,
+                            category = screen.category,
+                            language = language,
+                            onBack = pop,
+                            onNavigateToTrend = { label, cat -> push(Screen.MetricTrend(label, cat, null)) }
+                        )
+                        is Screen.AlertsList -> AlertsListScreen(
+                            token = token!!,
+                            month = screen.month,
+                            language = language,
+                            onBack = pop
+                        )
+                        is Screen.MetricTrend -> MetricTrendScreen(
+                            token = token!!,
+                            metricLabel = screen.metricLabel,
+                            category = screen.category,
+                            language = language,
+                            onBack = pop
+                        )
                     }
                 }
-            )
+            }
         }
     }
 }
