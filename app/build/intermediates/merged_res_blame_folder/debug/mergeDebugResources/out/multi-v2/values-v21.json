@@ -4,7 +4,7 @@
             "outputFile": "com.example.newapp-mergeDebugResources-39:/values-v21/values-v21.xml",
             "map": [
                 {
-                    "source": "/Users/dragon/.gradle/caches/8.10.2/transforms/5d32803f33079c8b346b739f5c6d4f88/transformed/core-1.13.1/res/values-v21/values-v21.xml",
+                    "source": "/Users/dragon/.gradle/caches/8.10.2/transforms/f815904d864effa0841d7b85ef63d217/transformed/core-1.13.1/res/values-v21/values-v21.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9,10,13",
                         "startColumns": "4,4,4,4,4,4,4,4,4,4",
