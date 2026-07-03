@@ -196,12 +196,12 @@ data class TrendPoint(
 
 @Serializable
 data class TrendResponse(
-    val point_count: Int,
-    val points: List<TrendPoint>
+    val point_count: Int = 0,
+    val points: List<TrendPoint> = emptyList()
 )
 
 @Serializable
-data class SnapshotsResponse(val items: List<Snapshot>)
+data class SnapshotsResponse(val items: List<Snapshot> = emptyList())
 
 @Serializable
 data class SnapshotDetailResponse(
@@ -212,7 +212,7 @@ data class SnapshotDetailResponse(
 
 @Serializable
 data class MetricsListResponse(
-    val items: List<Metric>
+    val items: List<Metric> = emptyList()
 )
 
 // --- 2. API 接口定义 (Ktor) ---
@@ -308,6 +308,7 @@ object NetworkModule {
         install(ContentNegotiation) {
             json(Json { ignoreUnknownKeys = true; coerceInputValues = true })
         }
+        expectSuccess = true
     }
     
     val service = MetricsApiService(client)

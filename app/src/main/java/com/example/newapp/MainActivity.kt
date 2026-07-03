@@ -8,9 +8,8 @@ import com.example.newapp.shared.App
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val mockToken = "mock_token"
         setContent {
-            App(mockToken)
+            App()
         }
     }
 }
