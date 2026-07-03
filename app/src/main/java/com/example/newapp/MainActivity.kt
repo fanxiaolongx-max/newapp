@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.Canvas
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -668,7 +669,7 @@ fun DashboardMonthPage(
                             Text(displayCat, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp, bottom = 4.dp))
                         }
                         items(catMetrics.take(3)) { metric ->
-                            MetricRowCard(metric, language, onNavigateToTrend = onNavigateToTrend)
+                            MetricRowCard(metric, language, token = token, onNavigateToTrend = onNavigateToTrend)
                         }
                     }
                 }
@@ -733,8 +734,33 @@ fun SnapshotCard(snapshot: Snapshot, onClick: () -> Unit) {
 }
 
 @Composable
-fun MetricRowCard(metric: Metric, language: String, onNavigateToTrend: ((String, String) -> Unit)? = null) {
+fun MetricRowCard(metric: Metric, language: String, token: String? = null, onNavigateToTrend: ((String, String) -> Unit)? = null) {
     var expanded by remember { mutableStateOf(false) }
+    var sparklineData by remember { mutableStateOf<List<Float>?>(null) }
+    var sparklineLoading by remember { mutableStateOf(false) }
+
+    LaunchedEffect(expanded) {
+        if (expanded && token != null && sparklineData == null) {
+            sparklineLoading = true
+            try {
+                val res = NetworkModule.service.getTrend(
+                    token = "Bearer $token",
+                    metricLabel = metric.metric_label,
+                    category = metric.category,
+                    days = 7,
+                    lang = if (language == "zh") "zh-CN" else "en-US"
+                )
+                sparklineData = res.points
+                    .sortedBy { it.snapshot_created_at }
+                    .distinctBy { it.snapshot_created_at.substringBefore(" ") }
+                    .mapNotNull { it.numeric_value }
+            } catch (e: Exception) {
+                // ignore
+            } finally {
+                sparklineLoading = false
+            }
+        }
+    }
 
     val displayLabel = if (language == "zh") {
         metric.schema?.target_config?.label_i18n?.zh ?: metric.metric_label
@@ -791,6 +817,38 @@ fun MetricRowCard(metric: Metric, language: String, onNavigateToTrend: ((String,
                 Text("Weight: ${metric.weight ?: "-"} | Earned: ${metric.earned_score ?: "-"}", color = Color.DarkGray, fontSize = 11.sp)
             }
             if (expanded && onNavigateToTrend != null) {
+                Spacer(Modifier.height(12.dp))
+                
+                if (sparklineLoading) {
+                    Box(Modifier.fillMaxWidth().height(40.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = Color.Cyan, modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                    }
+                } else if (!sparklineData.isNullOrEmpty() && sparklineData!!.size > 1) {
+                    val points = sparklineData!!
+                    val maxVal = points.maxOrNull() ?: 1f
+                    val minVal = points.minOrNull() ?: 0f
+                    val range = if (maxVal == minVal) 1f else maxVal - minVal
+                    
+                    Canvas(modifier = Modifier.fillMaxWidth().height(40.dp).padding(vertical = 4.dp)) {
+                        val stepX = size.width / (points.size - 1)
+                        val path = androidx.compose.ui.graphics.Path()
+                        
+                        points.forEachIndexed { index, value ->
+                            val x = index * stepX
+                            val y = size.height - ((value - minVal) / range) * size.height
+                            if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
+                        }
+                        drawPath(path, color = Color(0xFF00E5FF), style = androidx.compose.ui.graphics.drawscope.Stroke(width = 3.dp.toPx()))
+                        
+                        points.forEachIndexed { index, value ->
+                            val x = index * stepX
+                            val y = size.height - ((value - minVal) / range) * size.height
+                            drawCircle(color = Color.White, radius = 4.dp.toPx(), center = androidx.compose.ui.geometry.Offset(x, y))
+                            drawCircle(color = Color(0xFF00E5FF), radius = 2.dp.toPx(), center = androidx.compose.ui.geometry.Offset(x, y))
+                        }
+                    }
+                }
+
                 Spacer(Modifier.height(12.dp))
                 Button(
                     onClick = { onNavigateToTrend(metric.metric_label, metric.category) },
@@ -881,7 +939,7 @@ fun SnapshotDetailScreen(token: String, snapshotId: String, month: Int, language
                     if (res.metrics.isNotEmpty()) {
                         item { Text(if (language == "zh") "全部指标" else "ALL METRICS", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp)) }
                         items(res.metrics) { metric ->
-                            MetricRowCard(metric, language, onNavigateToTrend)
+                            MetricRowCard(metric, language, token = token, onNavigateToTrend = onNavigateToTrend)
                         }
                     }
                     item { Spacer(Modifier.height(24.dp)) }
@@ -945,7 +1003,7 @@ fun MetricsListScreen(token: String, title: String, filterType: String, month: I
                         Text(displayCat, color = Color(0xFF00E5FF), fontWeight = FontWeight.Bold, fontSize = 14.sp, modifier = Modifier.padding(top = 8.dp))
                     }
                     items(list) { metric ->
-                        MetricRowCard(metric, language, onNavigateToTrend)
+                        MetricRowCard(metric, language, token = token, onNavigateToTrend = onNavigateToTrend)
                     }
                 }
                 
@@ -1193,17 +1251,24 @@ fun MetricTrendScreen(token: String, metricLabel: String, category: String, lang
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Error: $errorMessage", color = Color.Red) }
         } else {
             trend?.let { res ->
+                val filteredPoints = remember(res.points) {
+                    res.points
+                        .sortedByDescending { it.snapshot_created_at }
+                        .distinctBy { it.snapshot_created_at.substringBefore(" ") }
+                }
+
                 LazyColumn(modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+
                     item {
                         Text(
-                            text = if (language == "zh") "共 ${res.point_count} 条记录 (最近 30 天)" else "Showing ${res.point_count} records (Last 30 Days)",
+                            text = if (language == "zh") "共显示 ${filteredPoints.size} 天的最新记录" else "Showing latest records for ${filteredPoints.size} days",
                             color = Color.Gray,
                             fontSize = 12.sp,
                             modifier = Modifier.padding(bottom = 8.dp)
                         )
                     }
                     
-                    items(res.points) { point ->
+                    items(filteredPoints) { point ->
                         Card(
                             colors = CardDefaults.cardColors(containerColor = Color(0xFF161B3D)),
                             modifier = Modifier.fillMaxWidth(),
