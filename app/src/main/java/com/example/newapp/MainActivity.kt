@@ -26,6 +26,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.Brush
@@ -626,6 +630,14 @@ fun DashboardMonthPage(
     var isLoading by remember(month) { mutableStateOf(true) }
     var errorMessage by remember(month) { mutableStateOf<String?>(null) }
 
+    val consumeHorizontalScroll = remember {
+        object : NestedScrollConnection {
+            override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+                return available.copy(y = 0f)
+            }
+        }
+    }
+
     LaunchedEffect(month) {
         isLoading = true
         errorMessage = null
@@ -728,7 +740,10 @@ fun DashboardMonthPage(
                         Text(if (language == "zh") "分类得分" else "CATEGORY SCORES", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     }
                     item {
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.nestedScroll(consumeHorizontalScroll)
+                        ) {
                             items(scores) { score ->
                                 val displayCat = if (language == "en" && score.category == "整体") "OVERALL" else score.category
                                 Card(
