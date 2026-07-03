@@ -37,15 +37,15 @@ jobs:
         name: app-debug
         path: app/build/outputs/apk/debug/app-debug.apk
 
-    - name: Update GitHub Release (发布到首页右侧)
-      # 只在推送到主分支时发布，避免 PR 也去覆盖正式 Release
+    - name: Create GitHub Release (发布新版本)
+      # 只在推送到主分支时发布，避免 PR 产生正式 Release
       if: github.event_name == 'push' 
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        RUN_NUMBER: ${{ github.run_number }}
       run: |
-        # 强制删除旧的 latest Release 和标签 (如果存在)
-        gh release delete "latest" --cleanup-tag -y || true
-        # 创建新的 latest Release 并附带刚打好的 APK
-        gh release create "latest" app/build/outputs/apk/debug/app-debug.apk \
-          --title "Latest APK (最新自动构建)" \
-          --notes "由 GitHub Actions 在每次推送 main 分支后自动编译生成。"
+        TAG_NAME="v1.0.${RUN_NUMBER}"
+        # 创建带独立版本号的新 Release 并附带刚打好的 APK
+        gh release create "$TAG_NAME" app/build/outputs/apk/debug/app-debug.apk \
+          --title "APK $TAG_NAME (自动构建)" \
+          --notes "由 GitHub Actions 在推送 main 分支后自动编译生成。内部版本号：$TAG_NAME"
