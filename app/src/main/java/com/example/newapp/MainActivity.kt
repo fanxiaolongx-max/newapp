@@ -736,7 +736,12 @@ fun DashboardMonthPage(
                     groupedMetrics.forEach { (category, catMetrics) ->
                         item {
                             val displayCat = if (language == "en" && category == "整体") "OVERALL" else category
-                            Text(displayCat, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp, bottom = 4.dp))
+                            val alertCountText = if (language == "zh") "(${catMetrics.size} 项异常)" else "(${catMetrics.size} alerts)"
+                            Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)) {
+                                Text(displayCat, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(alertCountText, color = Color(0xFFFF5252).copy(alpha = 0.8f), fontSize = 11.sp)
+                            }
                         }
                         items(catMetrics.take(3)) { metric ->
                             MetricRowCard(metric, language, token = token, onNavigateToTrend = onNavigateToTrend)
