@@ -650,7 +650,7 @@ fun DashboardMonthPage(
                 item {
                     Column(modifier = Modifier.padding(bottom = 16.dp)) {
                         Text(
-                            if (language == "zh") "已分析 ${it.snapshot_count} 份快照中的 ${it.metric_count} 个指标" else "Analyzed ${it.metric_count} metrics across ${it.snapshot_count} snapshots",
+                            if (language == "zh") "已分析 ${it.snapshot_count} 份快照中的 ${it.metric_count} 个指标" else "Analyzed ${it.metric_count} KPIs across ${it.snapshot_count} snapshots",
                             color = Color.Gray, fontSize = 12.sp,
                             modifier = Modifier.padding(bottom = 4.dp)
                         )
@@ -670,7 +670,7 @@ fun DashboardMonthPage(
                                 }
                             }
                             Text(
-                                if (language == "zh") "本月最新快照中，整体指标 $failingDesc 未达标。" else "In latest snapshot, overall metrics $failingDesc failed.",
+                                if (language == "zh") "本月最新快照中，整体指标 $failingDesc 未达标。" else "In latest snapshot, overall KPIs $failingDesc failed.",
                                 color = Color(0xFFFF5252).copy(alpha = 0.8f), fontSize = 11.sp,
                                 lineHeight = 16.sp
                             )
@@ -687,8 +687,8 @@ fun DashboardMonthPage(
                             val latestFailing = it.latest_failing_metrics.size
                             val latestCompliance = if (latestTotal > 0) ((latestTotal - latestFailing).toFloat() / latestTotal * 100).toInt() else null
 
-                            MetricSummaryCard(if (language == "zh") "达标率" else "COMPLIANCE", "${latestCompliance ?: "N/A"}%", Modifier.weight(1f), Color(0xFF00E5FF), onClick = { onNavigateToMetrics(if (language == "zh") "达标指标" else "COMPLIANT METRICS", "PASSING", month, snapshotId, null) })
-                            MetricSummaryCard(if (language == "zh") "异常" else "ALERTS", "$latestFailing", Modifier.weight(1f), Color(0xFFFF5252), onClick = { onNavigateToMetrics(if (language == "zh") "异常指标" else "FAILING METRICS", "FAILING", month, snapshotId, null) })
+                            MetricSummaryCard(if (language == "zh") "达标率" else "COMPLIANCE", "${latestCompliance ?: "N/A"}%", Modifier.weight(1f), Color(0xFF00E5FF), onClick = { onNavigateToMetrics(if (language == "zh") "达标指标" else "COMPLIANT KPIs", "PASSING", month, snapshotId, null) })
+                            MetricSummaryCard(if (language == "zh") "异常" else "ALERTS", "$latestFailing", Modifier.weight(1f), Color(0xFFFF5252), onClick = { onNavigateToMetrics(if (language == "zh") "异常指标" else "FAILING KPIs", "FAILING", month, snapshotId, null) })
                             MetricSummaryCard(if (language == "zh") "临期预警" else "EXPIRING", "${it.latest_expiring_ticket_count}", Modifier.weight(1f), Color(0xFFFFD700), onClick = { onNavigateToAlerts(month) })
                         }
                     }
@@ -706,7 +706,7 @@ fun DashboardMonthPage(
                                     colors = CardDefaults.cardColors(containerColor = Color(0xFF161B3D)),
                                     shape = RoundedCornerShape(12.dp),
                                     modifier = Modifier.clickable {
-                                        onNavigateToMetrics(if (language == "zh") "$displayCat 指标" else "$displayCat METRICS", "ALL", month, summary?.latest_snapshot?.snapshot_id, score.category)
+                                        onNavigateToMetrics(if (language == "zh") "$displayCat 指标" else "$displayCat KPIs", "ALL", month, summary?.latest_snapshot?.snapshot_id, score.category)
                                     }
                                 ) {
                                     Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -724,7 +724,7 @@ fun DashboardMonthPage(
                     item {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                             Text(if (language == "zh") "各分类近期异常" else "RECENT ALERTS BY CATEGORY", color = Color(0xFFFF5252), fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                            TextButton(onClick = { onNavigateToMetrics(if (language == "zh") "异常指标" else "FAILING METRICS", "FAILING", month, summary?.latest_snapshot?.snapshot_id, null) }) {
+                            TextButton(onClick = { onNavigateToMetrics(if (language == "zh") "异常指标" else "FAILING KPIs", "FAILING", month, summary?.latest_snapshot?.snapshot_id, null) }) {
                                 Text(if (language == "zh") "查看全部" else "VIEW ALL", color = Color.Gray, fontSize = 12.sp)
                             }
                         }
@@ -1038,7 +1038,7 @@ fun SnapshotDetailScreen(token: String, snapshotId: String, month: Int, language
                     }
 
                     if (deduplicatedMetrics.isNotEmpty()) {
-                        item { Text(if (language == "zh") "全部指标" else "ALL METRICS", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp)) }
+                        item { Text(if (language == "zh") "全部指标" else "ALL KPIs", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp)) }
                         items(deduplicatedMetrics) { metric ->
                             MetricRowCard(metric, language, token = token, onNavigateToTrend = onNavigateToTrend)
                         }
@@ -1113,7 +1113,7 @@ fun MetricsListScreen(token: String, title: String, filterType: String, month: I
             val deduplicatedMetrics = remember(metrics) { metrics }
             
             LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                item { Text(if (language == "zh") "共显示 ${deduplicatedMetrics.size} 个第 $month 月的指标" else "Showing ${deduplicatedMetrics.size} metrics for Month $month", color = Color.Gray, fontSize = 12.sp) }
+                item { Text(if (language == "zh") "共显示 ${deduplicatedMetrics.size} 个第 $month 月的指标" else "Showing ${deduplicatedMetrics.size} KPIs for Month $month", color = Color.Gray, fontSize = 12.sp) }
                 
                 val grouped = deduplicatedMetrics.groupBy { it.category }
                     .toList()
