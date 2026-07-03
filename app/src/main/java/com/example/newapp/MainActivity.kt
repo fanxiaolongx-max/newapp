@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -284,7 +285,7 @@ sealed class Screen {
     data class SnapshotDetail(val snapshotId: String, val month: Int) : Screen()
     data class MetricsList(val title: String, val filterType: String, val month: Int, val snapshotId: String?, val category: String? = null) : Screen()
     data class AlertsList(val month: Int) : Screen()
-    data class MetricTrend(val metricLabel: String, val category: String) : Screen()
+    data class MetricTrend(val metricLabel: String, val category: String, val previousScreen: Screen? = null) : Screen()
 }
 
 @Composable
@@ -295,7 +296,11 @@ fun AppNavigation() {
     var language by remember { mutableStateOf("zh") }
     
     BackHandler(enabled = currentScreen != Screen.Login && currentScreen != Screen.Dashboard) {
-        currentScreen = Screen.Dashboard
+        if (currentScreen is Screen.MetricTrend && (currentScreen as Screen.MetricTrend).previousScreen != null) {
+            currentScreen = (currentScreen as Screen.MetricTrend).previousScreen!!
+        } else {
+            currentScreen = Screen.Dashboard
+        }
     }
 
     if (token == null) {
@@ -315,7 +320,7 @@ fun AppNavigation() {
                 onNavigateToSnapshot = { id, m -> currentScreen = Screen.SnapshotDetail(id, m) },
                 onNavigateToMetrics = { title, filterType, m, sid, cat -> currentScreen = Screen.MetricsList(title, filterType, m, sid, cat) },
                 onNavigateToAlerts = { m -> currentScreen = Screen.AlertsList(m) },
-                onNavigateToTrend = { label, cat -> currentScreen = Screen.MetricTrend(label, cat) }
+                onNavigateToTrend = { label, cat -> currentScreen = Screen.MetricTrend(label, cat, currentScreen) }
             )
             is Screen.SnapshotDetail -> SnapshotDetailScreen(
                 token = token!!,
@@ -323,7 +328,7 @@ fun AppNavigation() {
                 month = screen.month,
                 language = language,
                 onBack = { currentScreen = Screen.Dashboard },
-                onNavigateToTrend = { label, cat -> currentScreen = Screen.MetricTrend(label, cat) }
+                onNavigateToTrend = { label, cat -> currentScreen = Screen.MetricTrend(label, cat, currentScreen) }
             )
             is Screen.MetricsList -> MetricsListScreen(
                 token = token!!,
@@ -334,7 +339,7 @@ fun AppNavigation() {
                 category = screen.category,
                 language = language,
                 onBack = { currentScreen = Screen.Dashboard },
-                onNavigateToTrend = { label, cat -> currentScreen = Screen.MetricTrend(label, cat) }
+                onNavigateToTrend = { label, cat -> currentScreen = Screen.MetricTrend(label, cat, currentScreen) }
             )
             is Screen.AlertsList -> AlertsListScreen(
                 token = token!!,
@@ -347,7 +352,13 @@ fun AppNavigation() {
                 metricLabel = screen.metricLabel,
                 category = screen.category,
                 language = language,
-                onBack = { currentScreen = Screen.Dashboard }
+                onBack = { 
+                    if (screen.previousScreen != null) {
+                        currentScreen = screen.previousScreen
+                    } else {
+                        currentScreen = Screen.Dashboard 
+                    }
+                }
             )
         }
     }
@@ -829,9 +840,15 @@ fun MetricRowCard(metric: Metric, language: String, token: String? = null, onNav
                     val minVal = points.minOrNull() ?: 0f
                     val range = if (maxVal == minVal) 1f else maxVal - minVal
                     
-                    Canvas(modifier = Modifier.fillMaxWidth().height(40.dp).padding(vertical = 4.dp)) {
-                        val stepX = size.width / (points.size - 1)
+                    Canvas(modifier = Modifier.fillMaxWidth().height(60.dp).padding(top = 16.dp, bottom = 4.dp)) {
+                        val stepX = size.width / (points.size - 1).coerceAtLeast(1)
                         val path = androidx.compose.ui.graphics.Path()
+                        val textPaint = android.graphics.Paint().apply {
+                            color = android.graphics.Color.LTGRAY
+                            textSize = 28f
+                            textAlign = android.graphics.Paint.Align.CENTER
+                            isAntiAlias = true
+                        }
                         
                         points.forEachIndexed { index, value ->
                             val x = index * stepX
@@ -845,6 +862,9 @@ fun MetricRowCard(metric: Metric, language: String, token: String? = null, onNav
                             val y = size.height - ((value - minVal) / range) * size.height
                             drawCircle(color = Color.White, radius = 4.dp.toPx(), center = androidx.compose.ui.geometry.Offset(x, y))
                             drawCircle(color = Color(0xFF00E5FF), radius = 2.dp.toPx(), center = androidx.compose.ui.geometry.Offset(x, y))
+                            
+                            val valStr = if (value % 1.0f == 0f) value.toInt().toString() else String.format("%.1f", value)
+                            drawContext.canvas.nativeCanvas.drawText(valStr, x, y - 8.dp.toPx(), textPaint)
                         }
                     }
                 }
