@@ -992,7 +992,7 @@ fun MetricRowCard(metric: Metric, language: String, token: String? = null, onNav
                             drawCircle(color = Color.White, radius = 4.dp.toPx(), center = androidx.compose.ui.geometry.Offset(x, y))
                             drawCircle(color = Color(0xFF00E5FF), radius = 2.dp.toPx(), center = androidx.compose.ui.geometry.Offset(x, y))
                             val valStr = if (value % 1.0f == 0f) value.toInt().toString() else ((value * 10).toInt() / 10f).toString()
-                            androidx.compose.ui.text.drawText(
+                            drawText(
                                 textMeasurer = textMeasurer,
                                 text = valStr,
                                 style = androidx.compose.ui.text.TextStyle(color = Color.LightGray, fontSize = 10.sp),
