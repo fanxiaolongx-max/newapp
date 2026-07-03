@@ -249,6 +249,7 @@ interface MetricsApiService {
     suspend fun getFailingMetrics(
         @Header("Authorization") token: String,
         @Query("month") month: Int,
+        @Query("category") category: String? = null,
         @Query("snapshot_id") snapshotId: String? = null,
         @Query("limit") limit: Int = 2000
     ): MetricsListResponse
@@ -1084,7 +1085,7 @@ fun MetricsListScreen(token: String, title: String, filterType: String, month: I
         try {
             val auth = "Bearer $token"
             val res = if (filterType == "FAILING") {
-                NetworkModule.service.getFailingMetrics(auth, month, snapshotId = snapshotId)
+                NetworkModule.service.getFailingMetrics(auth, month, category = category, snapshotId = snapshotId)
             } else {
                 NetworkModule.service.getMetrics(auth, month, category = category, snapshotId = snapshotId)
             }
@@ -1143,7 +1144,16 @@ fun MetricsListScreen(token: String, title: String, filterType: String, month: I
                 grouped.forEach { (cat, list) ->
                     item {
                         val displayCat = if (language == "en" && cat == "整体") "OVERALL" else cat
-                        Text(displayCat, color = Color(0xFF00E5FF), fontWeight = FontWeight.Bold, fontSize = 14.sp, modifier = Modifier.padding(top = 8.dp))
+                        val countText = when (filterType) {
+                            "FAILING" -> if (language == "zh") "(${list.size} 项异常)" else "(${list.size} alerts)"
+                            "PASSING" -> if (language == "zh") "(${list.size} 项达标)" else "(${list.size} passing)"
+                            else -> if (language == "zh") "(${list.size} 项)" else "(${list.size} KPIs)"
+                        }
+                        Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.padding(top = 8.dp)) {
+                            Text(displayCat, color = Color(0xFF00E5FF), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(countText, color = Color.Gray, fontSize = 12.sp)
+                        }
                     }
                     items(list) { metric ->
                         MetricRowCard(metric, language, token = token, onNavigateToTrend = onNavigateToTrend)
