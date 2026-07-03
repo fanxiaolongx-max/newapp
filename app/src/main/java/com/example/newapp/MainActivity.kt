@@ -529,14 +529,23 @@ fun DashboardScreen(
             Column(modifier = Modifier.background(Color(0xFF0A0E29))) {
                 CenterAlignedTopAppBar(
                     title = { 
-                        Text(
-                            text = if (language == "zh") "工具平台" else "TOOLS PLATFORM", 
-                            fontWeight = FontWeight.Bold, 
-                            letterSpacing = 1.sp,
-                            modifier = Modifier.pointerInput(Unit) {
-                                detectTapGestures(onDoubleTap = { scrollTrigger = System.currentTimeMillis() })
-                            }
-                        ) 
+                        Row(verticalAlignment = Alignment.Bottom) {
+                            Text(
+                                text = if (language == "zh") "工具平台" else "TOOLS PLATFORM", 
+                                fontWeight = FontWeight.Bold, 
+                                letterSpacing = 1.sp,
+                                modifier = Modifier.pointerInput(Unit) {
+                                    detectTapGestures(onDoubleTap = { scrollTrigger = System.currentTimeMillis() })
+                                }
+                            ) 
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = "v${BuildConfig.VERSION_NAME}",
+                                color = Color.Gray,
+                                fontSize = 11.sp,
+                                modifier = Modifier.padding(bottom = 2.dp)
+                            )
+                        }
                     },
                     colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.Transparent, titleContentColor = Color.White),
                     actions = {
@@ -737,10 +746,18 @@ fun DashboardMonthPage(
                         item {
                             val displayCat = if (language == "en" && category == "整体") "OVERALL" else category
                             val alertCountText = if (language == "zh") "(${catMetrics.size} 项异常)" else "(${catMetrics.size} alerts)"
-                            Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)) {
-                                Text(displayCat, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(alertCountText, color = Color(0xFFFF5252).copy(alpha = 0.8f), fontSize = 11.sp)
+                            Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Row(verticalAlignment = Alignment.Bottom) {
+                                    Text(displayCat, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(alertCountText, color = Color(0xFFFF5252).copy(alpha = 0.8f), fontSize = 11.sp)
+                                }
+                                Text(
+                                    if (language == "zh") "仅看此分类 >" else "ONLY THIS >", 
+                                    color = Color.Gray, 
+                                    fontSize = 11.sp, 
+                                    modifier = Modifier.clickable { onNavigateToMetrics(if (language == "zh") "$displayCat 异常" else "$displayCat ALERTS", "FAILING", month, summary?.latest_snapshot?.snapshot_id, category) }
+                                )
                             }
                         }
                         items(catMetrics.take(3)) { metric ->

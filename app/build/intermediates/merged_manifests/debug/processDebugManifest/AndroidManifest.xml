@@ -2,7 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.example.newapp"
     android:versionCode="1"
-    android:versionName="1.0" >
+    android:versionName="1.0.0-dev" >
 
     <uses-sdk
         android:minSdkVersion="24"
@@ -25,7 +25,6 @@
         android:label="Tools Platform"
         android:roundIcon="@drawable/ic_launcher"
         android:supportsRtl="true"
-        android:testOnly="true"
         android:theme="@android:style/Theme.DeviceDefault.NoActionBar" >
         <activity
             android:name="com.example.newapp.MainActivity"
