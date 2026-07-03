@@ -215,6 +215,9 @@ curl -H "Authorization: Bearer <token>" \
       "metric_label": "重疾EOS预案覆盖率",
       "weight": 1,
       "target_value": "≥ 100%",
+      "display_target_value": "≥ 100%",
+      "target_numeric_value": 100,
+      "target_is_percent": true,
       "raw_value": "100%",
       "numeric_value": 100,
       "is_failing": false,
@@ -327,6 +330,15 @@ curl -H "Authorization: Bearer <token>" \
 | `target_config.monthly_targets` | 各月份目标值 |
 | `source_columns` | 指标规则使用的匹配列、匹配值和取数字段 |
 
+目标值字段说明：
+
+| 字段 | 说明 |
+| --- | --- |
+| `target_value` | 入库明细里的目标展示值，历史数据可能是 `≥ 100` |
+| `display_target_value` | 外部 API 标准化后的展示值，百分比指标会补 `%`，例如 `≥ 100%` |
+| `target_numeric_value` | 目标配置中的原始数字，例如 `100` |
+| `target_is_percent` | 目标配置是否为百分比 |
+
 ### 7. 指标趋势
 
 `GET /api/external/metrics/trend`
@@ -338,7 +350,7 @@ curl -H "Authorization: Bearer <token>" \
 | 参数 | 类型 | 说明 |
 | --- | --- | --- |
 | `metric_label` | string | 必填，指标名称 |
-| `category` | string | 可选。传入时只返回该分类；不传时返回该指标所有分类的多条序列 |
+| `category` | string | 可选。传入时只返回该分类；传 `整体` 时返回从原始快照 `topMetrics.value` 派生的主指标整体趋势；不传时返回该指标所有分类，并包含 `整体` 序列 |
 | `days` | number | 最近 N 天，默认 30，最大 3650 |
 | `month` | number | 可选，限定目标月份 |
 | `startDate` / `endDate` | string | 可选，按快照时间过滤，格式 `YYYY-MM-DD` |
@@ -390,6 +402,9 @@ curl -H "Authorization: Bearer <token>" \
       "metric_label": "重疾EOS预案覆盖率",
       "display_metric_label": "Urgent EOS Contingency",
       "target_value": "≥ 100%",
+      "display_target_value": "≥ 100%",
+      "target_numeric_value": 100,
+      "target_is_percent": true,
       "raw_value": "100%",
       "numeric_value": 100,
       "is_failing": false,
@@ -408,6 +423,7 @@ curl -H "Authorization: Bearer <token>" \
 - `snapshot_created_at` 是报表快照时间，也就是入库 payload 中保存的快照时间。
 - `stored_at` 是服务端实际写入 `report.db` 的时间。旧历史数据在本接口上线前没有记录该字段，可能为 `null`。
 - App 画图建议优先使用 `series`；列表或表格可直接用 `points`。
+- `category=整体` 的点位会带 `is_derived_overall: true`，表示该值来自入库快照 `raw_data_json.topMetrics[].value`，与月报页面黄色“全局总体达标”列一致。
 
 ### 8. 临期任务预警
 

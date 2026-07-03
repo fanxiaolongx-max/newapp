@@ -86,6 +86,9 @@ data class Metric(
     val metric_label: String,
     val category: String,
     val target_value: String? = null,
+    val display_target_value: String? = null,
+    val target_numeric_value: Double? = null,
+    val target_is_percent: Boolean? = null,
     val raw_value: String? = null,
     val numeric_value: Float? = null,
     val is_failing: Boolean = false,
@@ -182,6 +185,9 @@ data class TrendPoint(
     val metric_label: String,
     val display_metric_label: String? = null,
     val target_value: String? = null,
+    val display_target_value: String? = null,
+    val target_numeric_value: Double? = null,
+    val target_is_percent: Boolean? = null,
     val raw_value: String? = null,
     val numeric_value: Float? = null,
     val is_failing: Boolean,
@@ -687,9 +693,9 @@ fun DashboardMonthPage(
                             val failingDesc = overallFailing.joinToString("，") { m -> 
                                 val label = if (language == "zh") m.schema?.target_config?.label_i18n?.zh ?: m.metric_label else m.schema?.target_config?.label_i18n?.en ?: m.metric_label
                                 if (language == "zh") {
-                                    "${label}(当前: ${m.raw_value ?: "N/A"}, 目标: ${m.target_value ?: "N/A"})"
+                                    "${label}(当前: ${m.raw_value ?: "N/A"}, 目标: ${m.display_target_value ?: m.target_value ?: "N/A"})"
                                 } else {
-                                    "${label}(Actual: ${m.raw_value ?: "N/A"}, Target: ${m.target_value ?: "N/A"})"
+                                    "${label}(Actual: ${m.raw_value ?: "N/A"}, Target: ${m.display_target_value ?: m.target_value ?: "N/A"})"
                                 }
                             }
                             Text(
@@ -911,16 +917,16 @@ fun MetricRowCard(metric: Metric, language: String, token: String? = null, onNav
             
             Spacer(Modifier.height(8.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Target: ${metric.target_value ?: "-"}", color = Color.Gray, fontSize = 12.sp)
-                Text("Actual: ${metric.raw_value ?: "-"}", color = if(metric.is_failing) Color(0xFFFF5252) else Color.Gray, fontSize = 12.sp)
+                Text(if (language == "zh") "目标: ${metric.display_target_value ?: metric.target_value ?: "-"}" else "Target: ${metric.display_target_value ?: metric.target_value ?: "-"}", color = Color.Gray, fontSize = 12.sp)
+                Text(if (language == "zh") "当前: ${metric.raw_value ?: "-"}" else "Actual: ${metric.raw_value ?: "-"}", color = if(metric.is_failing) Color(0xFFFF5252) else Color.Gray, fontSize = 12.sp)
             }
             if (!metric.gap.isNullOrEmpty()) {
                 Spacer(Modifier.height(4.dp))
-                Text("Gap: ${metric.gap}", color = Color(0xFFFFD700), fontSize = 12.sp)
+                Text(if (language == "zh") "差距: ${metric.gap}" else "Gap: ${metric.gap}", color = Color(0xFFFFD700), fontSize = 12.sp)
             }
             if (metric.weight != null || metric.earned_score != null) {
                 Spacer(Modifier.height(4.dp))
-                Text("Weight: ${metric.weight ?: "-"} | Earned: ${metric.earned_score ?: "-"}", color = Color.DarkGray, fontSize = 11.sp)
+                Text(if (language == "zh") "权重: ${metric.weight ?: "-"} | 得分: ${metric.earned_score ?: "-"}" else "Weight: ${metric.weight ?: "-"} | Earned: ${metric.earned_score ?: "-"}", color = Color.DarkGray, fontSize = 11.sp)
             }
             if (expanded && onNavigateToTrend != null) {
                 Spacer(Modifier.height(12.dp))
@@ -1513,7 +1519,8 @@ fun MetricTrendScreen(token: String, metricLabel: String, category: String, lang
                                 
                                 if (!point.gap.isNullOrEmpty()) {
                                     Spacer(Modifier.height(8.dp))
-                                    Text("Gap: ${point.gap}", color = Color(0xFFFFD700), fontSize = 11.sp)
+                                    val targetText = point.display_target_value ?: point.target_value ?: "-"
+                                    Text(if (language == "zh") "差距: ${point.gap}  |  目标: $targetText" else "Gap: ${point.gap}  |  Target: $targetText", color = Color(0xFFFFD700), fontSize = 11.sp)
                                 }
                             }
                         }
