@@ -303,6 +303,7 @@ sealed class Screen {
     data class MetricsList(val title: String, val filterType: String, val month: Int, val snapshotId: String?, val category: String? = null) : Screen()
     data class AlertsList(val month: Int) : Screen()
     data class MetricTrend(val metricLabel: String, val category: String, val previousScreen: Screen? = null) : Screen()
+    data class Search(val month: Int) : Screen()
 }
 
 @Composable
@@ -352,7 +353,8 @@ fun AppNavigation() {
                             onNavigateToSnapshot = { id, m -> push(Screen.SnapshotDetail(id, m)) },
                             onNavigateToMetrics = { title, filterType, m, sid, cat -> push(Screen.MetricsList(title, filterType, m, sid, cat)) },
                             onNavigateToAlerts = { m -> push(Screen.AlertsList(m)) },
-                            onNavigateToTrend = { label, cat -> push(Screen.MetricTrend(label, cat, null)) }
+                            onNavigateToTrend = { label, cat -> push(Screen.MetricTrend(label, cat, null)) },
+                            onNavigateToSearch = { push(Screen.Search(dashboardMonth)) }
                         )
                         is Screen.SnapshotDetail -> SnapshotDetailScreen(
                             token = token!!,
@@ -385,6 +387,13 @@ fun AppNavigation() {
                             category = screen.category,
                             language = language,
                             onBack = pop
+                        )
+                        is Screen.Search -> SearchScreen(
+                            token = token!!,
+                            month = screen.month,
+                            language = language,
+                            onBack = pop,
+                            onNavigateToTrend = { label, cat -> push(Screen.MetricTrend(label, cat, null)) }
                         )
                     }
                 }
@@ -531,7 +540,8 @@ fun DashboardScreen(
     onNavigateToSnapshot: (String, Int) -> Unit,
     onNavigateToMetrics: (String, String, Int, String?, String?) -> Unit,
     onNavigateToAlerts: (Int) -> Unit,
-    onNavigateToTrend: (String, String) -> Unit
+    onNavigateToTrend: (String, String) -> Unit,
+    onNavigateToSearch: () -> Unit
 ) {
     val pagerState = rememberPagerState(initialPage = selectedMonth - 1, pageCount = { 12 })
     var scrollTrigger by remember { mutableStateOf(0L) }
@@ -553,25 +563,30 @@ fun DashboardScreen(
             Column(modifier = Modifier.background(Color(0xFF0A0E29))) {
                 CenterAlignedTopAppBar(
                     title = { 
-                        Row(verticalAlignment = Alignment.Bottom) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
                                 text = if (language == "zh") "工具平台" else "TOOLS PLATFORM", 
-                                fontWeight = FontWeight.Bold, 
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp,
                                 letterSpacing = 1.sp,
+                                maxLines = 1,
                                 modifier = Modifier.pointerInput(Unit) {
                                     detectTapGestures(onDoubleTap = { scrollTrigger = System.currentTimeMillis() })
                                 }
                             ) 
-                            Spacer(Modifier.width(8.dp))
                             Text(
                                 text = "v${BuildConfig.VERSION_NAME}",
                                 color = Color.Gray,
-                                fontSize = 11.sp,
-                                modifier = Modifier.padding(bottom = 2.dp)
+                                fontSize = 10.sp
                             )
                         }
                     },
                     colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.Transparent, titleContentColor = Color.White),
+                    navigationIcon = {
+                        IconButton(onClick = onNavigateToSearch) {
+                            Icon(Icons.Default.Search, contentDescription = "Search", tint = Color.Cyan)
+                        }
+                    },
                     actions = {
                         TextButton(onClick = { onLanguageChange(if (language == "zh") "en" else "zh") }) {
                             Text(if (language == "zh") "EN" else "中", color = Color.Cyan)
@@ -1553,6 +1568,80 @@ class MainActivity : ComponentActivity() {
         setContent {
             MaterialTheme {
                 AppNavigation()
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SearchScreen(token: String, month: Int, language: String, onBack: () -> Unit, onNavigateToTrend: (String, String) -> Unit) {
+    var searchQuery by remember { mutableStateOf("") }
+    var allMetrics by remember { mutableStateOf<List<Metric>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+    
+    LaunchedEffect(month) {
+        try {
+            val res = NetworkModule.service.getMetrics("Bearer $token", month)
+            allMetrics = res.items.sortedBy { it.is_derived_overall == true }.distinctBy { it.metric_label + "_" + it.category }
+        } catch (e: Exception) {
+            // Error handling ignored for brevity in search screen
+        } finally {
+            isLoading = false
+        }
+    }
+    
+    val searchResults = remember(searchQuery, allMetrics) {
+        if (searchQuery.isBlank()) emptyList()
+        else allMetrics.filter {
+            it.metric_label.contains(searchQuery, ignoreCase = true) ||
+            it.schema?.target_config?.label_i18n?.zh?.contains(searchQuery, ignoreCase = true) == true ||
+            it.schema?.target_config?.label_i18n?.en?.contains(searchQuery, ignoreCase = true) == true
+        }
+    }
+    
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { 
+                    TextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        placeholder = { Text(if(language=="zh") "搜索指标..." else "Search metrics...", color = Color.Gray, fontSize = 14.sp) },
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = Color.Transparent,
+                            unfocusedContainerColor = Color.Transparent,
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent,
+                            cursorColor = Color.Cyan
+                        ),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White) }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF0A0E29))
+            )
+        },
+        containerColor = Color(0xFF0A0E29)
+    ) { padding ->
+        if (isLoading) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = Color.Cyan) }
+        } else {
+            LazyColumn(modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp)) {
+                if (searchQuery.isNotBlank()) {
+                    item {
+                        Text(if(language=="zh") "找到 ${searchResults.size} 个结果" else "Found ${searchResults.size} results", color = Color.Gray, fontSize = 12.sp, modifier = Modifier.padding(vertical = 8.dp))
+                    }
+                    items(searchResults) { metric ->
+                        MetricRowCard(metric, language, token = token, onNavigateToTrend = onNavigateToTrend)
+                        Spacer(Modifier.height(12.dp))
+                    }
+                }
             }
         }
     }
