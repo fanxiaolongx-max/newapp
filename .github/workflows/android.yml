@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ "main", "master" ]
 
+# 需要赋予 GitHub Actions 读写 Release 的权限
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -27,8 +31,21 @@ jobs:
     - name: Build Debug APK
       run: ./gradlew assembleDebug
 
-    - name: Upload APK
+    - name: Upload APK as Artifact (留底备份)
       uses: actions/upload-artifact@v4
       with:
         name: app-debug
         path: app/build/outputs/apk/debug/app-debug.apk
+
+    - name: Update GitHub Release (发布到首页右侧)
+      # 只在推送到主分支时发布，避免 PR 也去覆盖正式 Release
+      if: github.event_name == 'push' 
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        # 强制删除旧的 latest Release 和标签 (如果存在)
+        gh release delete "latest" --cleanup-tag -y || true
+        # 创建新的 latest Release 并附带刚打好的 APK
+        gh release create "latest" app/build/outputs/apk/debug/app-debug.apk \
+          --title "Latest APK (最新自动构建)" \
+          --notes "由 GitHub Actions 在每次推送 main 分支后自动编译生成。"
