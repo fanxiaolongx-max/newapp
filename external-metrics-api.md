@@ -272,12 +272,34 @@ curl -H "Authorization: Bearer <token>" \
 | `category` | string | 指定分类，例如 `TE`、`ORG`、`ET`、`VDF`、`整体` |
 | `metric_label` | string | 指标名称模糊搜索 |
 | `failing_only` | boolean | 是否只返回不达标指标，支持 `1`/`true` |
+| `include_overall` | boolean | 是否附加从原始快照 `topMetrics.value` 派生的 `整体` 指标行，支持 `1`/`true`；`/failing` 默认开启 |
 
 示例：
 
 ```bash
 curl -H "Authorization: Bearer <token>" \
   "http://127.0.0.1:3030/api/external/metrics?month=6&category=TE&limit=100"
+```
+
+查询整体异常示例：
+
+```bash
+curl -H "Authorization: Bearer <token>" \
+  "http://127.0.0.1:3030/api/external/metrics/failing?month=6&metric_label=重疾EOS预案覆盖率&category=整体"
+```
+
+这类整体行会带：
+
+```json
+{
+  "category": "整体",
+  "is_derived_overall": true,
+  "metric_label": "重疾EOS预案覆盖率",
+  "raw_value": "91%",
+  "target_value": "≥ 100%",
+  "is_failing": true,
+  "gap": "9%"
+}
 ```
 
 ### 6. 指标规则字典

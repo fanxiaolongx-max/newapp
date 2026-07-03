@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.pager.HorizontalPager
@@ -80,7 +81,7 @@ data class MetricSchema(
 
 @Serializable
 data class Metric(
-    val id: Int,
+    val id: Int? = null,
     val metric_label: String,
     val category: String,
     val target_value: String? = null,
@@ -90,7 +91,8 @@ data class Metric(
     val gap: String? = null,
     val weight: Float? = null,
     val earned_score: Float? = null,
-    val schema: MetricSchema? = null
+    val schema: MetricSchema? = null,
+    val is_derived_overall: Boolean? = null
 )
 
 @Serializable
@@ -214,7 +216,8 @@ interface MetricsApiService {
     @GET("api/external/metrics/summary")
     suspend fun getSummary(
         @Header("Authorization") token: String,
-        @Query("month") month: Int
+        @Query("month") month: Int,
+        @Query("include_overall") includeOverall: Boolean? = true
     ): SummaryResponse
 
     @GET("api/external/metrics/snapshots")
@@ -228,7 +231,8 @@ interface MetricsApiService {
     suspend fun getSnapshotDetail(
         @Header("Authorization") token: String,
         @Path("snapshot_id") snapshotId: String,
-        @Query("month") month: Int
+        @Query("month") month: Int,
+        @Query("include_overall") includeOverall: Boolean? = true
     ): SnapshotDetailResponse
 
     @GET("api/external/metrics")
@@ -237,6 +241,7 @@ interface MetricsApiService {
         @Query("month") month: Int,
         @Query("category") category: String? = null,
         @Query("snapshot_id") snapshotId: String? = null,
+        @Query("include_overall") includeOverall: Boolean? = true,
         @Query("limit") limit: Int = 2000
     ): MetricsListResponse
 
@@ -505,6 +510,7 @@ fun DashboardScreen(
     onNavigateToTrend: (String, String) -> Unit
 ) {
     val pagerState = rememberPagerState(initialPage = selectedMonth - 1, pageCount = { 12 })
+    var scrollTrigger by remember { mutableStateOf(0L) }
 
     LaunchedEffect(selectedMonth) {
         if (pagerState.currentPage != selectedMonth - 1) {
@@ -522,7 +528,16 @@ fun DashboardScreen(
         topBar = {
             Column(modifier = Modifier.background(Color(0xFF0A0E29))) {
                 CenterAlignedTopAppBar(
-                    title = { Text(if (language == "zh") "工具平台" else "TOOLS PLATFORM", fontWeight = FontWeight.Bold, letterSpacing = 1.sp) },
+                    title = { 
+                        Text(
+                            text = if (language == "zh") "工具平台" else "TOOLS PLATFORM", 
+                            fontWeight = FontWeight.Bold, 
+                            letterSpacing = 1.sp,
+                            modifier = Modifier.pointerInput(Unit) {
+                                detectTapGestures(onDoubleTap = { scrollTrigger = System.currentTimeMillis() })
+                            }
+                        ) 
+                    },
                     colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.Transparent, titleContentColor = Color.White),
                     actions = {
                         TextButton(onClick = { onLanguageChange(if (language == "zh") "en" else "zh") }) {
@@ -560,7 +575,8 @@ fun DashboardScreen(
                 onNavigateToSnapshot = onNavigateToSnapshot,
                 onNavigateToMetrics = onNavigateToMetrics,
                 onNavigateToAlerts = onNavigateToAlerts,
-                onNavigateToTrend = onNavigateToTrend
+                onNavigateToTrend = onNavigateToTrend,
+                scrollTrigger = scrollTrigger
             )
         }
     }
@@ -574,7 +590,8 @@ fun DashboardMonthPage(
     onNavigateToSnapshot: (String, Int) -> Unit,
     onNavigateToMetrics: (String, String, Int, String?, String?) -> Unit,
     onNavigateToAlerts: (Int) -> Unit,
-    onNavigateToTrend: (String, String) -> Unit
+    onNavigateToTrend: (String, String) -> Unit,
+    scrollTrigger: Long = 0L
 ) {
     var summary by remember(month) { mutableStateOf<SummaryResponse?>(null) }
     var isLoading by remember(month) { mutableStateOf(true) }
@@ -585,7 +602,17 @@ fun DashboardMonthPage(
         errorMessage = null
         try {
             val auth = "Bearer $token"
-            summary = NetworkModule.service.getSummary(auth, month)
+            val res = NetworkModule.service.getSummary(auth, month)
+            
+            // Fetch the full failing metrics for the latest snapshot to ensure derived metrics are included
+            val failingRes = res.latest_snapshot?.snapshot_id?.let { sid ->
+                NetworkModule.service.getFailingMetrics(auth, month, snapshotId = sid)
+            }
+            summary = if (failingRes != null) {
+                res.copy(latest_failing_metrics = failingRes.items)
+            } else {
+                res
+            }
         } catch (e: Exception) {
             errorMessage = e.message ?: e.toString()
         } finally {
@@ -602,7 +629,16 @@ fun DashboardMonthPage(
             Text(text = "Error: $errorMessage", color = Color.Red, modifier = Modifier.padding(16.dp))
         }
     } else {
+        val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+        
+        LaunchedEffect(scrollTrigger) {
+            if (scrollTrigger > 0L) {
+                listState.animateScrollToItem(0)
+            }
+        }
+        
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 16.dp),
@@ -612,11 +648,34 @@ fun DashboardMonthPage(
             
             summary?.let {
                 item {
-                    Text(
-                        if (language == "zh") "已分析 ${it.snapshot_count} 份快照中的 ${it.metric_count} 个指标" else "Analyzed ${it.metric_count} metrics across ${it.snapshot_count} snapshots",
-                        color = Color.Gray, fontSize = 12.sp,
-                        modifier = Modifier.padding(bottom = 16.dp)
-                    )
+                    Column(modifier = Modifier.padding(bottom = 16.dp)) {
+                        Text(
+                            if (language == "zh") "已分析 ${it.snapshot_count} 份快照中的 ${it.metric_count} 个指标" else "Analyzed ${it.metric_count} metrics across ${it.snapshot_count} snapshots",
+                            color = Color.Gray, fontSize = 12.sp,
+                            modifier = Modifier.padding(bottom = 4.dp)
+                        )
+                        
+                        val overallFailing = it.latest_failing_metrics
+                            .filter { m -> m.category == "整体" || m.category == "OVERALL" }
+                            .sortedBy { m -> m.is_derived_overall == true }
+                            .distinctBy { m -> m.metric_label }
+                            
+                        if (overallFailing.isNotEmpty()) {
+                            val failingDesc = overallFailing.joinToString("，") { m -> 
+                                val label = if (language == "zh") m.schema?.target_config?.label_i18n?.zh ?: m.metric_label else m.schema?.target_config?.label_i18n?.en ?: m.metric_label
+                                if (language == "zh") {
+                                    "${label}(当前: ${m.raw_value ?: "N/A"}, 目标: ${m.target_value ?: "N/A"})"
+                                } else {
+                                    "${label}(Actual: ${m.raw_value ?: "N/A"}, Target: ${m.target_value ?: "N/A"})"
+                                }
+                            }
+                            Text(
+                                if (language == "zh") "本月最新快照中，整体指标 $failingDesc 未达标。" else "In latest snapshot, overall metrics $failingDesc failed.",
+                                color = Color(0xFFFF5252).copy(alpha = 0.8f), fontSize = 11.sp,
+                                lineHeight = 16.sp
+                            )
+                        }
+                    }
                 }
             }
                 
@@ -892,6 +951,7 @@ fun SnapshotDetailScreen(token: String, snapshotId: String, month: Int, language
     var detail by remember { mutableStateOf<SnapshotDetailResponse?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var scrollTrigger by remember { mutableStateOf(0L) }
 
     LaunchedEffect(snapshotId) {
         try {
@@ -906,7 +966,15 @@ fun SnapshotDetailScreen(token: String, snapshotId: String, month: Int, language
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (language == "zh") "快照 $snapshotId" else "SNAPSHOT $snapshotId", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold) },
+                title = { 
+                    Text(
+                        text = if (language == "zh") "快照 $snapshotId" else "SNAPSHOT $snapshotId", 
+                        color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold,
+                        modifier = Modifier.pointerInput(Unit) {
+                            detectTapGestures(onDoubleTap = { scrollTrigger = System.currentTimeMillis() })
+                        }
+                    ) 
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
@@ -922,8 +990,21 @@ fun SnapshotDetailScreen(token: String, snapshotId: String, month: Int, language
         } else if (errorMessage != null) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Error: $errorMessage", color = Color.Red) }
         } else {
+            val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+            
+            LaunchedEffect(scrollTrigger) {
+                if (scrollTrigger > 0L) {
+                    if (listState.firstVisibleItemIndex > 10) listState.scrollToItem(10)
+                    listState.animateScrollToItem(0)
+                }
+            }
+            
             detail?.let { res ->
-                LazyColumn(modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                val deduplicatedMetrics = remember(res.metrics) {
+                    res.metrics.sortedBy { it.is_derived_overall == true }.distinctBy { it.metric_label + "_" + it.category }
+                }
+                
+                LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     item {
                         Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF161B3D)), modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
                             Column(Modifier.padding(24.dp)) {
@@ -956,9 +1037,9 @@ fun SnapshotDetailScreen(token: String, snapshotId: String, month: Int, language
                         }
                     }
 
-                    if (res.metrics.isNotEmpty()) {
+                    if (deduplicatedMetrics.isNotEmpty()) {
                         item { Text(if (language == "zh") "全部指标" else "ALL METRICS", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp)) }
-                        items(res.metrics) { metric ->
+                        items(deduplicatedMetrics) { metric ->
                             MetricRowCard(metric, language, token = token, onNavigateToTrend = onNavigateToTrend)
                         }
                     }
@@ -975,6 +1056,7 @@ fun MetricsListScreen(token: String, title: String, filterType: String, month: I
     var metrics by remember { mutableStateOf<List<Metric>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var scrollTrigger by remember { mutableStateOf(0L) }
 
     LaunchedEffect(Unit) {
         try {
@@ -984,7 +1066,8 @@ fun MetricsListScreen(token: String, title: String, filterType: String, month: I
             } else {
                 NetworkModule.service.getMetrics(auth, month, category = category, snapshotId = snapshotId)
             }
-            metrics = if (filterType == "PASSING") res.items.filter { !it.is_failing } else res.items
+            val filtered = if (filterType == "PASSING") res.items.filter { !it.is_failing } else res.items
+            metrics = filtered.sortedBy { it.is_derived_overall == true }.distinctBy { it.metric_label + "_" + it.category }
         } catch (e: Exception) {
             errorMessage = e.message ?: e.toString()
         } finally {
@@ -995,7 +1078,14 @@ fun MetricsListScreen(token: String, title: String, filterType: String, month: I
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(title, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold) },
+                title = { 
+                    Text(
+                        text = title, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold,
+                        modifier = Modifier.pointerInput(Unit) {
+                            detectTapGestures(onDoubleTap = { scrollTrigger = System.currentTimeMillis() })
+                        }
+                    ) 
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
@@ -1011,10 +1101,21 @@ fun MetricsListScreen(token: String, title: String, filterType: String, month: I
         } else if (errorMessage != null) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Error: $errorMessage", color = Color.Red) }
         } else {
-            LazyColumn(modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                item { Text(if (language == "zh") "共显示 ${metrics.size} 个第 $month 月的指标" else "Showing ${metrics.size} metrics for Month $month", color = Color.Gray, fontSize = 12.sp) }
+            val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+            
+            LaunchedEffect(scrollTrigger) {
+                if (scrollTrigger > 0L) {
+                    if (listState.firstVisibleItemIndex > 10) listState.scrollToItem(10)
+                    listState.animateScrollToItem(0)
+                }
+            }
+            
+            val deduplicatedMetrics = remember(metrics) { metrics }
+            
+            LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                item { Text(if (language == "zh") "共显示 ${deduplicatedMetrics.size} 个第 $month 月的指标" else "Showing ${deduplicatedMetrics.size} metrics for Month $month", color = Color.Gray, fontSize = 12.sp) }
                 
-                val grouped = metrics.groupBy { it.category }
+                val grouped = deduplicatedMetrics.groupBy { it.category }
                     .toList()
                     .sortedWith(compareBy({ if (it.first == "整体") 0 else 1 }, { it.first }))
                 grouped.forEach { (cat, list) ->
@@ -1176,6 +1277,7 @@ fun AlertsListScreen(token: String, month: Int, language: String, onBack: () -> 
     var tickets by remember { mutableStateOf<List<ExpiringTicket>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var scrollTrigger by remember { mutableStateOf(0L) }
 
     LaunchedEffect(Unit) {
         try {
@@ -1191,7 +1293,14 @@ fun AlertsListScreen(token: String, month: Int, language: String, onBack: () -> 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (language == "zh") "临期预警" else "EXPIRING ALERTS", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold) },
+                title = { 
+                    Text(
+                        text = if (language == "zh") "临期预警" else "EXPIRING ALERTS", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold,
+                        modifier = Modifier.pointerInput(Unit) {
+                            detectTapGestures(onDoubleTap = { scrollTrigger = System.currentTimeMillis() })
+                        }
+                    ) 
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White) }
                 },
@@ -1205,7 +1314,16 @@ fun AlertsListScreen(token: String, month: Int, language: String, onBack: () -> 
         } else if (errorMessage != null) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Error: $errorMessage", color = Color.Red) }
         } else {
-            LazyColumn(modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+            
+            LaunchedEffect(scrollTrigger) {
+                if (scrollTrigger > 0L) {
+                    if (listState.firstVisibleItemIndex > 10) listState.scrollToItem(10)
+                    listState.animateScrollToItem(0)
+                }
+            }
+            
+            LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 item { Text(if (language == "zh") "共显示 ${tickets.size} 个第 $month 月的任务" else "Showing ${tickets.size} tickets for Month $month", color = Color.Gray, fontSize = 12.sp) }
                 
                 val grouped = tickets.groupBy { it.collection }
@@ -1218,7 +1336,19 @@ fun AlertsListScreen(token: String, month: Int, language: String, onBack: () -> 
                         firstTicket?.collection_label_i18n?.en ?: firstTicket?.display_collection_label ?: collection
                     }
                     item {
-                        Text(displayCollection.uppercase(), color = Color(0xFF00E5FF), fontWeight = FontWeight.Bold, fontSize = 14.sp, modifier = Modifier.padding(top = 8.dp))
+                        Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                            Text(displayCollection.uppercase(), color = Color(0xFF00E5FF), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            
+                            val overdueCount = list.count { it.sla_status?.is_overdue == true }
+                            val expiringCount = list.size - overdueCount
+                            
+                            Text(
+                                if (language == "zh") "${expiringCount} 临期 | ${overdueCount} 超期" 
+                                else "${expiringCount} Expiring | ${overdueCount} Overdue",
+                                color = Color.Gray, 
+                                fontSize = 11.sp
+                            )
+                        }
                     }
                     items(list) { ticket ->
                         TicketRowCard(ticket, language)
@@ -1237,6 +1367,7 @@ fun MetricTrendScreen(token: String, metricLabel: String, category: String, lang
     var trend by remember { mutableStateOf<TrendResponse?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var scrollTrigger by remember { mutableStateOf(0L) }
 
     LaunchedEffect(metricLabel, category) {
         try {
@@ -1256,7 +1387,14 @@ fun MetricTrendScreen(token: String, metricLabel: String, category: String, lang
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(metricLabel, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold, maxLines = 1) },
+                title = { 
+                    Text(
+                        text = metricLabel, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold, maxLines = 1,
+                        modifier = Modifier.pointerInput(Unit) {
+                            detectTapGestures(onDoubleTap = { scrollTrigger = System.currentTimeMillis() })
+                        }
+                    ) 
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White) }
                 },
@@ -1277,7 +1415,16 @@ fun MetricTrendScreen(token: String, metricLabel: String, category: String, lang
                         .distinctBy { it.snapshot_created_at.substringBefore(" ") }
                 }
 
-                LazyColumn(modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+                
+                LaunchedEffect(scrollTrigger) {
+                    if (scrollTrigger > 0L) {
+                        if (listState.firstVisibleItemIndex > 10) listState.scrollToItem(10)
+                        listState.animateScrollToItem(0)
+                    }
+                }
+                
+                LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
 
                     item {
                         Text(
