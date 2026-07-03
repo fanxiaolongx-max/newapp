@@ -66,12 +66,6 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
 
-    - name: Compile Kotlin/Native Framework
-      run: ./gradlew :shared:embedAndSignAppleFrameworkForXcode
-      env:
-        CONFIGURATION: Debug
-        ARCHS: arm64
-        SDK_NAME: iphoneos17.0
 
     - name: Build iOS App (Unsigned)
       run: |
