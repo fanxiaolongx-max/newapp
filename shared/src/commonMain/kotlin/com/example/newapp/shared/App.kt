@@ -37,7 +37,6 @@ import androidx.compose.ui.text.style.TextAlign
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.*
-import java.util.Calendar
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.request.*
@@ -573,7 +572,7 @@ fun DashboardScreen(
                                 letterSpacing = 1.sp,
                                 maxLines = 1,
                                 modifier = Modifier.pointerInput(Unit) {
-                                    detectTapGestures(onDoubleTap = { scrollTrigger = System.currentTimeMillis() })
+                                    detectTapGestures(onDoubleTap = { scrollTrigger = kotlin.random.Random.nextLong() })
                                 }
                             ) 
                             Text(
@@ -972,16 +971,11 @@ fun MetricRowCard(metric: Metric, language: String, token: String? = null, onNav
                     val maxVal = points.maxOrNull() ?: 1f
                     val minVal = points.minOrNull() ?: 0f
                     val range = if (maxVal == minVal) 1f else maxVal - minVal
+                    val textMeasurer = androidx.compose.ui.text.rememberTextMeasurer()
                     
                     Canvas(modifier = Modifier.fillMaxWidth().height(60.dp).padding(top = 16.dp, bottom = 4.dp)) {
                         val stepX = size.width / (points.size - 1).coerceAtLeast(1)
                         val path = androidx.compose.ui.graphics.Path()
-                        val textPaint = android.graphics.Paint().apply {
-                            color = android.graphics.Color.LTGRAY
-                            textSize = 28f
-                            textAlign = android.graphics.Paint.Align.CENTER
-                            isAntiAlias = true
-                        }
                         
                         points.forEachIndexed { index, value ->
                             val x = index * stepX
@@ -995,9 +989,13 @@ fun MetricRowCard(metric: Metric, language: String, token: String? = null, onNav
                             val y = size.height - ((value - minVal) / range) * size.height
                             drawCircle(color = Color.White, radius = 4.dp.toPx(), center = androidx.compose.ui.geometry.Offset(x, y))
                             drawCircle(color = Color(0xFF00E5FF), radius = 2.dp.toPx(), center = androidx.compose.ui.geometry.Offset(x, y))
-                            
-                            val valStr = if (value % 1.0f == 0f) value.toInt().toString() else String.format("%.1f", value)
-                            drawContext.canvas.nativeCanvas.drawText(valStr, x, y - 8.dp.toPx(), textPaint)
+                            val valStr = if (value % 1.0f == 0f) value.toInt().toString() else ((value * 10).toInt() / 10f).toString()
+                            androidx.compose.ui.text.drawText(
+                                textMeasurer = textMeasurer,
+                                text = valStr,
+                                style = androidx.compose.ui.text.TextStyle(color = Color.LightGray, fontSize = 10.sp),
+                                topLeft = androidx.compose.ui.geometry.Offset(x - 10.dp.toPx(), y - 24.dp.toPx())
+                            )
                         }
                     }
                 }
@@ -1045,7 +1043,7 @@ fun SnapshotDetailScreen(token: String, snapshotId: String, month: Int, language
                         text = if (language == "zh") "快照 $snapshotId" else "SNAPSHOT $snapshotId", 
                         color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold,
                         modifier = Modifier.pointerInput(Unit) {
-                            detectTapGestures(onDoubleTap = { scrollTrigger = System.currentTimeMillis() })
+                            detectTapGestures(onDoubleTap = { scrollTrigger = kotlin.random.Random.nextLong() })
                         }
                     ) 
                 },
@@ -1156,7 +1154,7 @@ fun MetricsListScreen(token: String, title: String, filterType: String, month: I
                     Text(
                         text = title, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold,
                         modifier = Modifier.pointerInput(Unit) {
-                            detectTapGestures(onDoubleTap = { scrollTrigger = System.currentTimeMillis() })
+                            detectTapGestures(onDoubleTap = { scrollTrigger = kotlin.random.Random.nextLong() })
                         }
                     ) 
                 },
@@ -1380,7 +1378,7 @@ fun AlertsListScreen(token: String, month: Int, language: String, onBack: () -> 
                     Text(
                         text = if (language == "zh") "临期预警" else "EXPIRING ALERTS", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold,
                         modifier = Modifier.pointerInput(Unit) {
-                            detectTapGestures(onDoubleTap = { scrollTrigger = System.currentTimeMillis() })
+                            detectTapGestures(onDoubleTap = { scrollTrigger = kotlin.random.Random.nextLong() })
                         }
                     ) 
                 },
@@ -1474,7 +1472,7 @@ fun MetricTrendScreen(token: String, metricLabel: String, category: String, lang
                     Text(
                         text = metricLabel, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold, maxLines = 1,
                         modifier = Modifier.pointerInput(Unit) {
-                            detectTapGestures(onDoubleTap = { scrollTrigger = System.currentTimeMillis() })
+                            detectTapGestures(onDoubleTap = { scrollTrigger = kotlin.random.Random.nextLong() })
                         }
                     ) 
                 },
