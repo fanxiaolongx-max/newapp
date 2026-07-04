@@ -27,4 +27,8 @@ actual class SettingsManager actual constructor() {
         val components = calendar.components(platform.Foundation.NSCalendarUnitMonth, fromDate = date)
         return components.month.toInt()
     }
+
+    actual fun getAppVersion(): String {
+        return platform.Foundation.NSBundle.mainBundle.objectForInfoDictionaryKey("CFBundleShortVersionString") as? String ?: "1.0.0"
+    }
 }

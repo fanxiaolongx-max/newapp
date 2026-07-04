@@ -31,4 +31,13 @@ actual class SettingsManager actual constructor() {
     actual fun getCurrentMonth(): Int {
         return java.util.Calendar.getInstance().get(java.util.Calendar.MONTH) + 1
     }
+
+    actual fun getAppVersion(): String {
+        return try {
+            val pInfo = AppContext.context.packageManager.getPackageInfo(AppContext.context.packageName, 0)
+            pInfo.versionName ?: "1.0.0"
+        } catch (e: Exception) {
+            "1.0.0"
+        }
+    }
 }
