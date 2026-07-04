@@ -345,8 +345,8 @@ fun App(initialToken: String? = null) {
         }
     }
 
-    // BackHandler is omitted in CMP for simplicity.
-    // Navigation back should be handled via UI buttons.
+    // Intercept Android hardware back button/gesture to pop the backstack
+    PlatformBackHandler(enabled = backstack.size > 1, onBack = pop)
 
     if (token == null) {
         LoginScreen(onLoginSuccess = { 
