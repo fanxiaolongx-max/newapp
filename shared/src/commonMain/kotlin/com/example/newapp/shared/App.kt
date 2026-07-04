@@ -548,16 +548,16 @@ fun LoginScreen(onLoginSuccess: (String) -> Unit) {
                             onCheckedChange = { rememberMe = it; if (!it) autoLogin = false },
                             colors = CheckboxDefaults.colors(checkedColor = Color.Cyan, checkmarkColor = Color(0xFF0A0E29))
                         )
-                        Text("Remember Me", color = Color.LightGray, fontSize = 12.sp)
+                        Text("Remember Me", color = Color.LightGray, fontSize = 12.sp, maxLines = 1)
                     }
-                    Spacer(Modifier.width(32.dp))
+                    Spacer(Modifier.width(16.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Checkbox(
                             checked = autoLogin, 
                             onCheckedChange = { autoLogin = it; if (it) rememberMe = true },
                             colors = CheckboxDefaults.colors(checkedColor = Color.Cyan, checkmarkColor = Color(0xFF0A0E29))
                         )
-                        Text("Auto Login", color = Color.LightGray, fontSize = 12.sp)
+                        Text("Auto Login", color = Color.LightGray, fontSize = 12.sp, maxLines = 1)
                     }
                 }
 
