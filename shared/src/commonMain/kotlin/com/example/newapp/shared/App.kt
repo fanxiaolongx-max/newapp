@@ -516,6 +516,7 @@ fun LoginScreen(onLoginSuccess: (String) -> Unit) {
                     value = username,
                     onValueChange = { username = it },
                     label = { Text("Username", color = Color.Gray) },
+                    singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White)
                 )
@@ -524,6 +525,7 @@ fun LoginScreen(onLoginSuccess: (String) -> Unit) {
                     value = password,
                     onValueChange = { password = it },
                     label = { Text("Password", color = Color.Gray) },
+                    singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     visualTransformation = PasswordVisualTransformation(),
                     colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White)
