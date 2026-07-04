@@ -406,6 +406,11 @@ fun App(initialToken: String? = null) {
                             selectedMonth = dashboardMonth,
                             language = language,
                             onLanguageChange = { language = it },
+                            onLogout = { 
+                                token = null
+                                settings.saveBoolean("autoLogin", false)
+                                backstack = listOf(Screen.Dashboard)
+                            },
                             onMonthSelected = { dashboardMonth = it },
                             onNavigateToSnapshot = { id, m -> push(Screen.SnapshotDetail(id, m)) },
                             onNavigateToMetrics = { title, filterType, m, sid, cat -> push(Screen.MetricsList(title, filterType, m, sid, cat)) },
@@ -657,6 +662,7 @@ fun DashboardScreen(
     selectedMonth: Int,
     language: String,
     onLanguageChange: (String) -> Unit,
+    onLogout: () -> Unit,
     onMonthSelected: (Int) -> Unit,
     onNavigateToSnapshot: (String, Int) -> Unit,
     onNavigateToMetrics: (String, String, Int, String?, String?) -> Unit,
@@ -713,6 +719,9 @@ fun DashboardScreen(
                     actions = {
                         TextButton(onClick = { onLanguageChange(if (language == "zh") "en" else "zh") }) {
                             Text(if (language == "zh") "EN" else "中", color = Color.Cyan)
+                        }
+                        IconButton(onClick = onLogout) {
+                            Icon(Icons.Default.ExitToApp, contentDescription = "Logout", tint = Color.Gray)
                         }
                     }
                 )
