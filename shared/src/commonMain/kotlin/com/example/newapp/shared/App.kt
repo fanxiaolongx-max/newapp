@@ -512,9 +512,12 @@ fun LoginScreen(onLoginSuccess: (String) -> Unit) {
     var error by remember { mutableStateOf<String?>(null) }
     var showConfigDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
     
     val doLogin = {
+        focusManager.clearFocus()
         scope.launch {
+            kotlinx.coroutines.delay(200) // Give iOS keyboard time to dismiss before scene teardown
             loading = true
             error = null
             try {
