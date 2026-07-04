@@ -424,10 +424,11 @@ fun App(initialToken: String? = null) {
 // --- 4. 登录界面 ---
 @Composable
 fun LoginScreen(onLoginSuccess: (String) -> Unit) {
-    var rememberMe by remember { mutableStateOf(false) }
-    var autoLogin by remember { mutableStateOf(false) }
-    var username by remember { mutableStateOf("admin") }
-    var password by remember { mutableStateOf("") }
+    val settings = remember { SettingsManager() }
+    var rememberMe by remember { mutableStateOf(settings.getBoolean("rememberMe", false)) }
+    var autoLogin by remember { mutableStateOf(settings.getBoolean("autoLogin", false)) }
+    var username by remember { mutableStateOf(settings.getString("username", "admin")) }
+    var password by remember { mutableStateOf(if (rememberMe) settings.getString("password", "") else "") }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
@@ -439,6 +440,14 @@ fun LoginScreen(onLoginSuccess: (String) -> Unit) {
             try {
                 val res = NetworkModule.service.login(LoginRequest(username, password))
                 if (res.success && res.token != null) {
+                    settings.saveBoolean("rememberMe", rememberMe)
+                    settings.saveBoolean("autoLogin", autoLogin)
+                    settings.saveString("username", username)
+                    if (rememberMe) {
+                        settings.saveString("password", password)
+                    } else {
+                        settings.saveString("password", "")
+                    }
                     onLoginSuccess(res.token)
                 } else {
                     error = res.message ?: "Invalid Credentials"
