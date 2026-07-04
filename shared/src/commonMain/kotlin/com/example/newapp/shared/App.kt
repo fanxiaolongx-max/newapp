@@ -539,7 +539,7 @@ fun LoginScreen(onLoginSuccess: (String) -> Unit) {
 
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -550,6 +550,7 @@ fun LoginScreen(onLoginSuccess: (String) -> Unit) {
                         )
                         Text("Remember Me", color = Color.LightGray, fontSize = 12.sp)
                     }
+                    Spacer(Modifier.width(32.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Checkbox(
                             checked = autoLogin, 
