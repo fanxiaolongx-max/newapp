@@ -375,6 +375,13 @@ fun App(initialToken: String? = null) {
                     modifier = Modifier.size(36.dp)
                 )
             }
+            val appVersion = remember { settings.getAppVersion() }
+            Text(
+                text = "v$appVersion",
+                color = Color.Gray,
+                fontSize = 12.sp,
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 32.dp)
+            )
         }
     } else if (token == null) {
         LoginScreen(onLoginSuccess = { 
@@ -573,6 +580,13 @@ fun LoginScreen(onLoginSuccess: (String) -> Unit) {
                 }
             }
         }
+        val appVersion = remember { settings.getAppVersion() }
+        Text(
+            text = "v$appVersion",
+            color = Color.Gray,
+            fontSize = 12.sp,
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 32.dp)
+        )
     }
 }
 
