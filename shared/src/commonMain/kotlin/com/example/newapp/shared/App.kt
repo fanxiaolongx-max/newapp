@@ -664,11 +664,13 @@ fun DashboardScreen(
                     edgePadding = 16.dp,
                     divider = {}
                 ) {
+                    val enMonths = listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
                     (1..12).forEach { month ->
+                        val monthText = if (language == "zh") "${month}月" else enMonths[month - 1]
                         Tab(
                             selected = selectedMonth == month,
                             onClick = { onMonthSelected(month) },
-                            text = { Text("${month}月", color = if (selectedMonth == month) Color.Cyan else Color.Gray, fontWeight = if(selectedMonth == month) FontWeight.Bold else FontWeight.Normal) }
+                            text = { Text(monthText, color = if (selectedMonth == month) Color.Cyan else Color.Gray, fontWeight = if(selectedMonth == month) FontWeight.Bold else FontWeight.Normal) }
                         )
                     }
                 }
