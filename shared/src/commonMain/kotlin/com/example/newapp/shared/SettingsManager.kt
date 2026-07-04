@@ -5,4 +5,5 @@ expect class SettingsManager() {
     fun getString(key: String, defaultValue: String): String
     fun saveBoolean(key: String, value: Boolean)
     fun getBoolean(key: String, defaultValue: Boolean): Boolean
+    fun getCurrentMonth(): Int
 }

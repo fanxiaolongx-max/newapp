@@ -20,4 +20,11 @@ actual class SettingsManager actual constructor() {
     actual fun getBoolean(key: String, defaultValue: Boolean): Boolean {
         return defaults.boolForKey(key)
     }
+
+    actual fun getCurrentMonth(): Int {
+        val date = platform.Foundation.NSDate()
+        val calendar = platform.Foundation.NSCalendar.currentCalendar
+        val components = calendar.components(platform.Foundation.NSCalendarUnitMonth, fromDate = date)
+        return components.month.toInt()
+    }
 }

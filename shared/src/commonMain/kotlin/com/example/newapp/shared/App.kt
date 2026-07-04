@@ -330,7 +330,8 @@ sealed class Screen {
 fun App(initialToken: String? = null) {
     var backstack by remember { mutableStateOf(listOf<Screen>(Screen.Dashboard)) }
     var token by remember { mutableStateOf<String?>(initialToken) }
-    var dashboardMonth by remember { mutableStateOf(5) }
+    val settings = remember { SettingsManager() }
+    var dashboardMonth by remember { mutableStateOf(settings.getCurrentMonth()) }
     var language by remember { mutableStateOf("zh") }
     
     val push: (Screen) -> Unit = { screen ->
@@ -752,7 +753,8 @@ fun DashboardMonthPage(
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                             val snapshotId = it.latest_snapshot?.snapshot_id
                             val latestTotal = it.latest_metrics_total
-                            val latestFailing = it.latest_failing_metrics.size
+                            val deduplicatedFailing = it.latest_failing_metrics.distinctBy { m -> m.metric_label + "_" + m.category }
+                            val latestFailing = deduplicatedFailing.size
                             val latestCompliance = if (latestTotal > 0) ((latestTotal - latestFailing).toFloat() / latestTotal * 100).toInt() else null
 
                             MetricSummaryCard(if (language == "zh") "达标率" else "COMPLIANCE", "${latestCompliance ?: "N/A"}%", Modifier.weight(1f), Color(0xFF00E5FF), onClick = { onNavigateToMetrics(if (language == "zh") "达标指标" else "COMPLIANT KPIs", "PASSING", month, snapshotId, null) })

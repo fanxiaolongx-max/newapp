@@ -27,4 +27,8 @@ actual class SettingsManager actual constructor() {
     actual fun getBoolean(key: String, defaultValue: Boolean): Boolean {
         return prefs.getBoolean(key, defaultValue)
     }
+
+    actual fun getCurrentMonth(): Int {
+        return java.util.Calendar.getInstance().get(java.util.Calendar.MONTH) + 1
+    }
 }
