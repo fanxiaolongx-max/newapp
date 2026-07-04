@@ -43,6 +43,7 @@ import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.client.plugins.contentnegotiation.*
+import io.ktor.client.plugins.logging.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
@@ -310,6 +311,10 @@ object NetworkModule {
     val client = HttpClient {
         install(ContentNegotiation) {
             json(Json { ignoreUnknownKeys = true; coerceInputValues = true })
+        }
+        install(Logging) {
+            logger = Logger.SIMPLE
+            level = LogLevel.INFO
         }
         expectSuccess = true
     }
