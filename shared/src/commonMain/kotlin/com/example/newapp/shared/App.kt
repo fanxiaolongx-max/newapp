@@ -1003,11 +1003,17 @@ fun MetricRowCard(metric: Metric, language: String, token: String? = null, onNav
                             drawCircle(color = Color.White, radius = 4.dp.toPx(), center = androidx.compose.ui.geometry.Offset(x, y))
                             drawCircle(color = Color(0xFF00E5FF), radius = 2.dp.toPx(), center = androidx.compose.ui.geometry.Offset(x, y))
                             val valStr = if (value % 1.0f == 0f) value.toInt().toString() else ((value * 10).toInt() / 10f).toString()
+                            val textStyle = androidx.compose.ui.text.TextStyle(color = Color.LightGray, fontSize = 10.sp)
+                            val textLayoutResult = textMeasurer.measure(valStr, style = textStyle)
+                            val textWidth = textLayoutResult.size.width
+                            val offsetX = when (index) {
+                                0 -> x
+                                points.size - 1 -> x - textWidth
+                                else -> x - (textWidth / 2f)
+                            }
                             drawText(
-                                textMeasurer = textMeasurer,
-                                text = valStr,
-                                style = androidx.compose.ui.text.TextStyle(color = Color.LightGray, fontSize = 10.sp),
-                                topLeft = androidx.compose.ui.geometry.Offset(x - 10.dp.toPx(), y - 24.dp.toPx())
+                                textLayoutResult = textLayoutResult,
+                                topLeft = androidx.compose.ui.geometry.Offset(offsetX, y - 24.dp.toPx())
                             )
                         }
                     }
