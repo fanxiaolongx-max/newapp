@@ -348,7 +348,35 @@ fun App(initialToken: String? = null) {
     // Intercept Android hardware back button/gesture to pop the backstack
     PlatformBackHandler(enabled = backstack.size > 1, onBack = pop)
 
-    if (token == null) {
+    var showSplash by remember { mutableStateOf(true) }
+
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(1500)
+        showSplash = false
+    }
+
+    if (showSplash) {
+        Box(
+            modifier = Modifier.fillMaxSize().background(Color(0xFF0A0E29)),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = "TOOLS PLATFORM",
+                    color = Color.White,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 4.sp
+                )
+                Spacer(Modifier.height(32.dp))
+                CircularProgressIndicator(
+                    color = Color(0xFF00E5FF),
+                    strokeWidth = 3.dp,
+                    modifier = Modifier.size(36.dp)
+                )
+            }
+        }
+    } else if (token == null) {
         LoginScreen(onLoginSuccess = { 
             token = it
             backstack = listOf(Screen.Dashboard)
