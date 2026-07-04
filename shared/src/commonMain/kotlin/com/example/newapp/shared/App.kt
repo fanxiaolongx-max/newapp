@@ -801,7 +801,9 @@ fun DashboardMonthPage(
                         }
                     }
                     
-                    val groupedMetrics = failingMetrics.groupBy { it.category }
+                    val groupedMetrics = failingMetrics
+                        .distinctBy { it.metric_label + "_" + it.category }
+                        .groupBy { it.category }
                         .toList()
                         .sortedWith(compareBy({ if (it.first == "整体") 0 else 1 }, { it.first }))
                     groupedMetrics.forEach { (category, catMetrics) ->
