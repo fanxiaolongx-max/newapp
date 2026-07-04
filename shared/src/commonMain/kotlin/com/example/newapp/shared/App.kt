@@ -587,6 +587,7 @@ fun DashboardScreen(
                                     detectTapGestures(onDoubleTap = { scrollTrigger = kotlin.random.Random.nextLong() })
                                 }
                             ) 
+                            val settings = remember { SettingsManager() }
                             val appVersion = remember { settings.getAppVersion() }
                             Text(
                                 text = "v$appVersion",
