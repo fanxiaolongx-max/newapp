@@ -218,7 +218,9 @@ data class MetricsListResponse(
 
 // --- 2. API 接口定义 (Ktor) ---
 class MetricsApiService(private val client: HttpClient) {
-    private val baseUrl = "https://cs.fanxiaolong.uk"
+    private val settings = SettingsManager()
+    private val baseUrl: String
+        get() = settings.getString("api_base_url", "https://cs.fanxiaolong.uk").trimEnd('/')
 
     suspend fun login(request: LoginRequest): LoginResponse {
         return client.post("$baseUrl/api/auth/login") {
@@ -457,6 +459,37 @@ fun App(initialToken: String? = null) {
     }
 }
 
+@Composable
+fun ServerConfigDialog(
+    currentUrl: String,
+    onDismiss: () -> Unit,
+    onSave: (String) -> Unit
+) {
+    var url by remember { mutableStateOf(currentUrl) }
+    
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Server Configuration", color = Color.White) },
+        containerColor = Color(0xFF161B3D),
+        text = {
+            OutlinedTextField(
+                value = url,
+                onValueChange = { url = it },
+                label = { Text("API Base URL", color = Color.Gray) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White)
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = { onSave(url) }) { Text("Save", color = Color.Cyan) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel", color = Color.Gray) }
+        }
+    )
+}
+
 // --- 4. 登录界面 ---
 @Composable
 fun LoginScreen(onLoginSuccess: (String) -> Unit) {
@@ -467,6 +500,7 @@ fun LoginScreen(onLoginSuccess: (String) -> Unit) {
     var password by remember { mutableStateOf(if (rememberMe) settings.getString("password", "") else "") }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    var showConfigDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     
     val doLogin = {
@@ -580,13 +614,38 @@ fun LoginScreen(onLoginSuccess: (String) -> Unit) {
                 }
             }
         }
-        val appVersion = remember { settings.getAppVersion() }
-        Text(
-            text = "v$appVersion",
-            color = Color.Gray,
-            fontSize = 12.sp,
+        
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 32.dp)
-        )
+        ) {
+            val appVersion = remember { settings.getAppVersion() }
+            Text(
+                text = "v$appVersion",
+                color = Color.Gray,
+                fontSize = 12.sp
+            )
+            Spacer(Modifier.height(8.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.clickable { showConfigDialog = true }.padding(4.dp)
+            ) {
+                Icon(Icons.Default.Settings, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(14.dp))
+                Spacer(Modifier.width(4.dp))
+                Text("Server Config", color = Color.Gray, fontSize = 12.sp)
+            }
+        }
+        
+        if (showConfigDialog) {
+            ServerConfigDialog(
+                currentUrl = settings.getString("api_base_url", "https://cs.fanxiaolong.uk"),
+                onDismiss = { showConfigDialog = false },
+                onSave = { newUrl ->
+                    settings.saveString("api_base_url", newUrl)
+                    showConfigDialog = false
+                }
+            )
+        }
     }
 }
 
